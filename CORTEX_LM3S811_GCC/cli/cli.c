@@ -17,7 +17,7 @@ static BaseType_t prvTaskStatsCommand( char *pcWriteBuffer, size_t xWriteBufferL
 static const CLI_Command_Definition_t xTaskStats =
 {
 	"task-stats", /* The command string to type. */
-	"\r\ntask-stats:\r\n Displays a table showing the state of each FreeRTOS task\r\n",
+	"\r\n yo task-stats:\r\n Displays a table showing the state of each FreeRTOS task\r\n",
 	prvTaskStatsCommand, /* The function to run. */
 	0 /* No parameters are expected. */
 };
