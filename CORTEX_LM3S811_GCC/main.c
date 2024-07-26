@@ -104,11 +104,11 @@ static void vButtonHandlerTask( void *pvParameters );
 /*
  * The task that controls access to the LCD.
  */
-static void vPrintTask( void *pvParameter );
+static void vPrintTask( void *pvParameters );
 
 
 void vUARTCommandConsoleStart( uint16_t usStackSize, UBaseType_t uxPriority );
-void RegisterCliCommands(void);
+void vRegisterCliCommands(void);
 
 
 /* String that is transmitted on the UART. */
@@ -135,16 +135,16 @@ int main( void )
     xSemaphoreTake( xButtonSemaphore, 0 );
 
     /* Create the queue used to pass message to vPrintTask. */
-//    xPrintQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
+    xPrintQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
 
     /* Start the standard demo tasks. */
 
     vUARTCommandConsoleStart(500, mainCONSOLE_TASK_PRIORITY);
 
-    RegisterCliCommands();
+    vRegisterCliCommands();
     /* Start the tasks defined within the file. */
-//    xTaskCreate( vButtonHandlerTask, "Status", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY + 1, NULL );
-//    xTaskCreate( vPrintTask, "Print", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY - 1, NULL );
+    xTaskCreate( vButtonHandlerTask, "Status", configMINIMAL_STACK_SIZE, NULL, mainCONSOLE_TASK_PRIORITY - 1, NULL );
+    xTaskCreate( vPrintTask, "Print", configMINIMAL_STACK_SIZE, NULL, mainCONSOLE_TASK_PRIORITY + 1, NULL );
 
     /* Start the scheduler. */
     vTaskStartScheduler();
@@ -169,8 +169,6 @@ static void prvSetupHardware( void )
     GPIOPinIntEnable( GPIO_PORTC_BASE, mainPUSH_BUTTON );
     IntEnable( INT_GPIOC );
 
-
-
     /* Enable the UART.  */
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
@@ -183,9 +181,9 @@ static void prvSetupHardware( void )
     UARTConfigSet( UART0_BASE, mainBAUD_RATE, UART_CONFIG_WLEN_8 | UART_CONFIG_PAR_NONE | UART_CONFIG_STOP_ONE );
 
     /* Initialise the LCD> */
-    // OSRAMInit(false);
-    // OSRAMStringDraw("www.FreeRTOS.org", 0, 0);
-    // OSRAMStringDraw("LM3S811 demo", 16, 1);
+    OSRAMInit(false);
+    OSRAMStringDraw("www.FreeRTOS.org", 0, 0);
+    OSRAMStringDraw("LM3S811 demo", 16, 1);
 }
 /*-----------------------------------------------------------*/
 
@@ -250,8 +248,8 @@ unsigned portBASE_TYPE uxLine = 0, uxRow = 0;
         /* Write the message to the LCD. */
         uxRow++;
         uxLine++;
-        //OSRAMClear();
-        //OSRAMStringDraw( pcMessage, uxLine & 0x3f, uxRow & 0x01);
+        OSRAMClear();
+        OSRAMStringDraw( pcMessage, uxLine & 0x3f, uxRow & 0x01);
     }
 }
 

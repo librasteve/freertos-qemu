@@ -22,6 +22,15 @@ Using qemu to run freertos on cortex-m3
     cd CORTEX_LM3S811_GCC
     make
 
+## Build from FreeRTOS
+    git clone https://github.com/librasteve/FreeRTOS.git
+    cd FreeRTOS
+    git submodule init
+    git submodule update --recursive
+    cd CORTEX_LM3S811_GCC
+    make
+
+
 ## Run
     qemu-system-arm -M lm3s811evb -nographic -kernel gcc/RTOSDemo.bin
 
