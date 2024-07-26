@@ -86,7 +86,8 @@ void (* const g_pfnVectors[])(void) =
     xPortSysTickHandler,                    // The SysTick handler
     IntDefaultHandler,                      // GPIO Port A
     IntDefaultHandler,                      // GPIO Port B
-    vGPIO_ISR,								// GPIO Port C
+    IntDefaultHandler,						// GPIO Port C
+    //vGPIO_ISR,
     IntDefaultHandler,                      // GPIO Port D
     IntDefaultHandler,                      // GPIO Port E
     vUART_ISR_Handler,								// UART0 Rx and Tx

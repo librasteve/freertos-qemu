@@ -35,3 +35,50 @@ Using qemu to run freertos on cortex-m3
     qemu-system-arm -M lm3s811evb -nographic -kernel gcc/RTOSDemo.bin
 
 use Ctrl-A+X to exit.
+
+
+## SOC
+
+- some errors when the Print (to LCD) task is enabled
+
+```Timer with period zero, disabling
+ssd0303: error: Unknown command: 0x80
+ssd0303: error: Unexpected byte 0xe3
+ssd0303: error: Unknown command: 0x80
+ssd0303: error: Unexpected byte 0xe3
+ssd0303: error: Unknown command: 0x80
+ssd0303: error: Unexpected byte 0xe3
+ssd0303: error: Unknown command: 0x80
+ssd0303: error: Unexpected byte 0xe3
+ssd0303: error: Unknown command: 0x80
+ssd0303: error: Unexpected byte 0xe3
+ssd0303: error: Unknown command: 0x80
+ssd0303: error: Unexpected byte 0xe3
+ssd0303: error: Unknown command: 0x80
+ssd0303: error: Unexpected byte 0xe3
+ssd0303: error: Unknown command: 0x80
+ssd0303: error: Unexpected byte 0xe3
+ssd0303: error: Unknown command: 0x80
+ssd0303: error: Unexpected byte 0xe3
+FreeRTOS command server.
+Type help to view a list of registered commands.
+
+>ts
+Command not recognised.  Enter 'help' to view a list of available commands.
+
+
+[Press ENTER to execute the previous command again]
+>task-stats
+Task        State   Priority  Stack    #
+************************************************
+CLI      	X	3	438	1
+IDLE     	R	0	44	4
+Status   	B	2	38	2
+Print    	B	4	36	3
+
+[Press ENTER to execute the previous command again]
+```
+
+- will comment => remove all the LCD and Status (hard button) code
+- add ProcA and ProcB and Channel1 -- need to see the state of the channel queues
+- iamerejh add in queue message monitor CLI Task

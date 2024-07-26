@@ -99,13 +99,16 @@ static void prvSetupHardware( void );
  * The task that is woken by the ISR that processes GPIO interrupts originating
  * from the push button.
  */
-static void vButtonHandlerTask( void *pvParameters );
+//static void vButtonHandlerTask( void *pvParameters );
 
 /*
  * The task that controls access to the LCD.
  */
-static void vPrintTask( void *pvParameters );
+//static void vPrintTask( void *pvParameters );
 
+
+static void vProcATask( void *pvParameters );
+static void vProcBTask( void *pvParameters );
 
 void vUARTCommandConsoleStart( uint16_t usStackSize, UBaseType_t uxPriority );
 void vRegisterCliCommands(void);
@@ -117,10 +120,12 @@ static volatile char *pcNextChar;
 
 /* The semaphore used to wake the button handler task from within the GPIO
 interrupt handler. */
-SemaphoreHandle_t xButtonSemaphore;
+//SemaphoreHandle_t xButtonSemaphore;
 
 /* The queue used to send strings to the print task for display on the LCD. */
-QueueHandle_t xPrintQueue;
+//QueueHandle_t xPrintQueue;
+
+QueueHandle_t xChannel1;
 
 /*-----------------------------------------------------------*/
 
@@ -131,20 +136,26 @@ int main( void )
 
     /* Create the semaphore used to wake the button handler task from the GPIO
     ISR. */
-    vSemaphoreCreateBinary( xButtonSemaphore );
-    xSemaphoreTake( xButtonSemaphore, 0 );
+//    vSemaphoreCreateBinary( xButtonSemaphore );
+//    xSemaphoreTake( xButtonSemaphore, 0 );
 
     /* Create the queue used to pass message to vPrintTask. */
-    xPrintQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
+//    xPrintQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
+
+    xChannel1 = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
+
 
     /* Start the standard demo tasks. */
 
     vUARTCommandConsoleStart(500, mainCONSOLE_TASK_PRIORITY);
 
     vRegisterCliCommands();
+
     /* Start the tasks defined within the file. */
-    xTaskCreate( vButtonHandlerTask, "Status", configMINIMAL_STACK_SIZE, NULL, mainCONSOLE_TASK_PRIORITY - 1, NULL );
-    xTaskCreate( vPrintTask, "Print", configMINIMAL_STACK_SIZE, NULL, mainCONSOLE_TASK_PRIORITY + 1, NULL );
+//    xTaskCreate( vButtonHandlerTask, "Status", configMINIMAL_STACK_SIZE, NULL, mainCONSOLE_TASK_PRIORITY - 1, NULL );
+//    xTaskCreate( vPrintTask, "Print", configMINIMAL_STACK_SIZE, NULL, mainCONSOLE_TASK_PRIORITY + 1, NULL );
+    xTaskCreate( vProcATask, "ProcA", configMINIMAL_STACK_SIZE, NULL, mainCONSOLE_TASK_PRIORITY - 1, NULL );
+    xTaskCreate( vProcBTask, "ProcB", configMINIMAL_STACK_SIZE, NULL, mainCONSOLE_TASK_PRIORITY - 1, NULL );
 
     /* Start the scheduler. */
     vTaskStartScheduler();
@@ -162,94 +173,135 @@ static void prvSetupHardware( void )
     SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_6MHZ );
 
     /* Setup the push button. */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
-    GPIODirModeSet(GPIO_PORTC_BASE, mainPUSH_BUTTON, GPIO_DIR_MODE_IN);
-    GPIOIntTypeSet( GPIO_PORTC_BASE, mainPUSH_BUTTON,GPIO_FALLING_EDGE );
-    IntPrioritySet( INT_GPIOC, configKERNEL_INTERRUPT_PRIORITY );
-    GPIOPinIntEnable( GPIO_PORTC_BASE, mainPUSH_BUTTON );
-    IntEnable( INT_GPIOC );
+//    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
+//    GPIODirModeSet(GPIO_PORTC_BASE, mainPUSH_BUTTON, GPIO_DIR_MODE_IN);
+//    GPIOIntTypeSet( GPIO_PORTC_BASE, mainPUSH_BUTTON,GPIO_FALLING_EDGE );
+//    IntPrioritySet( INT_GPIOC, configKERNEL_INTERRUPT_PRIORITY );
+//    GPIOPinIntEnable( GPIO_PORTC_BASE, mainPUSH_BUTTON );
+//    IntEnable( INT_GPIOC );
 
     /* Enable the UART.  */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+//    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+//    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
 
     /* Set GPIO A0 and A1 as peripheral function.  They are used to output the
     UART signals. */
-    GPIODirModeSet( GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_DIR_MODE_HW );
+//    GPIODirModeSet( GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_DIR_MODE_HW );
 
     /* Configure the UART for 8-N-1 operation. */
-    UARTConfigSet( UART0_BASE, mainBAUD_RATE, UART_CONFIG_WLEN_8 | UART_CONFIG_PAR_NONE | UART_CONFIG_STOP_ONE );
+//    UARTConfigSet( UART0_BASE, mainBAUD_RATE, UART_CONFIG_WLEN_8 | UART_CONFIG_PAR_NONE | UART_CONFIG_STOP_ONE );
 
     /* Initialise the LCD> */
-    OSRAMInit(false);
-    OSRAMStringDraw("www.FreeRTOS.org", 0, 0);
-    OSRAMStringDraw("LM3S811 demo", 16, 1);
+//    OSRAMInit(false);
+//    OSRAMStringDraw("www.FreeRTOS.org", 0, 0);
+//    OSRAMStringDraw("LM3S811 demo", 16, 1);
 }
 /*-----------------------------------------------------------*/
 
-static void vButtonHandlerTask( void *pvParameters )
-{
-const char *pcInterruptMessage = "Int";
-
-    for( ;; )
-    {
-        /* Wait for a GPIO interrupt to wake this task. */
-        while( xSemaphoreTake( xButtonSemaphore, portMAX_DELAY ) != pdPASS );
-
-        /* Start the Tx of the message on the UART. */
-        UARTIntDisable( UART0_BASE, UART_INT_TX );
-        {
-            pcNextChar = cMessage;
-
-            /* Send the first character. */
-            if( !( HWREG( UART0_BASE + UART_O_FR ) & UART_FR_TXFF ) )
-            {
-                HWREG( UART0_BASE + UART_O_DR ) = *pcNextChar;
-            }
-
-            pcNextChar++;
-        }
-        UARTIntEnable(UART0_BASE, UART_INT_TX);
-
-        /* Queue a message for the print task to display on the LCD. */
-        xQueueSend( xPrintQueue, &pcInterruptMessage, portMAX_DELAY );
-
-        /* Make sure we don't process bounces. */
-        vTaskDelay( mainDEBOUNCE_DELAY );
-        xSemaphoreTake( xButtonSemaphore, mainNO_DELAY );
-    }
-}
-
-/*-----------------------------------------------------------*/
-void vGPIO_ISR( void )
-{
-portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-
-    /* Clear the interrupt. */
-    GPIOPinIntClear(GPIO_PORTC_BASE, mainPUSH_BUTTON);
-
-    /* Wake the button handler task. */
-    xSemaphoreGiveFromISR( xButtonSemaphore, &xHigherPriorityTaskWoken );
-
-    portEND_SWITCHING_ISR( xHigherPriorityTaskWoken );
-}
-/*-----------------------------------------------------------*/
-
-static void vPrintTask( void *pvParameters )
+static void vProcATask( void *pvParameters )
 {
 char *pcMessage;
-unsigned portBASE_TYPE uxLine = 0, uxRow = 0;
+//unsigned portBASE_TYPE uxLine = 0, uxRow = 0;
 
     for( ;; )
     {
         /* Wait for a message to arrive. */
-        xQueueReceive( xPrintQueue, &pcMessage, portMAX_DELAY );
-
-        /* Write the message to the LCD. */
-        uxRow++;
-        uxLine++;
-        OSRAMClear();
-        OSRAMStringDraw( pcMessage, uxLine & 0x3f, uxRow & 0x01);
+        xQueueReceive( xChannel1, &pcMessage, portMAX_DELAY );
+//
+//        /* Write the message to the LCD. */
+//        uxRow++;
+//        uxLine++;
+//        OSRAMClear();
+//        OSRAMStringDraw( pcMessage, uxLine & 0x3f, uxRow & 0x01);
     }
 }
+
+static void vProcBTask( void *pvParameters )
+{
+//char *pcMessage;
+//unsigned portBASE_TYPE uxLine = 0, uxRow = 0;
+
+    for( ;; )
+    {
+          /* Send a message to arrive. */
+            xQueueSend( xChannel1, "yo baby", portMAX_DELAY );
+
+        /* Wait for a message to arrive. */
+//        xQueueReceive( xChannel1, &pcMessage, portMAX_DELAY );
+//
+//        /* Write the message to the LCD. */
+//        uxRow++;
+//        uxLine++;
+//        OSRAMClear();
+//        OSRAMStringDraw( pcMessage, uxLine & 0x3f, uxRow & 0x01);
+    }
+}
+
+//static void vButtonHandlerTask( void *pvParameters )
+//{
+//const char *pcInterruptMessage = "Int";
+//
+//    for( ;; )
+//    {
+//        /* Wait for a GPIO interrupt to wake this task. */
+//        while( xSemaphoreTake( xButtonSemaphore, portMAX_DELAY ) != pdPASS );
+//
+//        /* Start the Tx of the message on the UART. */
+//        UARTIntDisable( UART0_BASE, UART_INT_TX );
+//        {
+//            pcNextChar = cMessage;
+//
+//            /* Send the first character. */
+//            if( !( HWREG( UART0_BASE + UART_O_FR ) & UART_FR_TXFF ) )
+//            {
+//                HWREG( UART0_BASE + UART_O_DR ) = *pcNextChar;
+//            }
+//
+//            pcNextChar++;
+//        }
+//        UARTIntEnable(UART0_BASE, UART_INT_TX);
+//
+//        /* Queue a message for the print task to display on the LCD. */
+//        xQueueSend( xPrintQueue, &pcInterruptMessage, portMAX_DELAY );
+//
+//        /* Make sure we don't process bounces. */
+//        vTaskDelay( mainDEBOUNCE_DELAY );
+//        xSemaphoreTake( xButtonSemaphore, mainNO_DELAY );
+//    }
+//}
+
+/*-----------------------------------------------------------*/
+//void vGPIO_ISR( void )
+//{
+//portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+//
+//    /* Clear the interrupt. */
+//    GPIOPinIntClear(GPIO_PORTC_BASE, mainPUSH_BUTTON);
+//
+//    /* Wake the button handler task. */
+//    xSemaphoreGiveFromISR( xButtonSemaphore, &xHigherPriorityTaskWoken );
+//
+//    portEND_SWITCHING_ISR( xHigherPriorityTaskWoken );
+//}
+/*-----------------------------------------------------------*/
+
+//static void vPrintTask( void *pvParameters )
+//{
+//char *pcMessage;
+//unsigned portBASE_TYPE uxLine = 0, uxRow = 0;
+//
+//    for( ;; )
+//    {
+//        /* Wait for a message to arrive. */
+//        xQueueReceive( xPrintQueue, &pcMessage, portMAX_DELAY );
+//
+//        /* Write the message to the LCD. */
+//        uxRow++;
+//        uxLine++;
+//        OSRAMClear();
+//        OSRAMStringDraw( pcMessage, uxLine & 0x3f, uxRow & 0x01);
+//    }
+//}
+
+
 
